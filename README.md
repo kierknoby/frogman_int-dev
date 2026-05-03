@@ -4,7 +4,7 @@
 
 Connect via MCP and ask "why can't extension 101 make calls?" — Frogman runs live diagnostics, searches its knowledge base, and hands the AI everything it needs to answer.
 
-Also includes a web console, CLI chat, and HTTP API for humans and bots. Built entirely on FreePBX's native interfaces (BMO, GraphQL, AMI, fwconsole). Every action is validated, permission-gated, audit-logged, and requires confirmation before making changes.
+Also includes a web console, CLI chat, and HTTP API for humans and bots. Built entirely on FreePBX's native interfaces (BMO, AMI, fwconsole). Every action is validated, permission-gated, audit-logged, and requires confirmation before making changes.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ Verify it's installed:
 
 ```bash
 fwconsole ma list | grep frogman
-# | frogman | 1.4.0 | Enabled | AGPLv3+ | Unsigned |
+# | frogman | 1.0.0 | Enabled | AGPLv3+ | Unsigned |
 ```
 
 ### Post-Install (Optional)
@@ -49,18 +49,18 @@ This is optional — all other tools work without it. Without this, service tool
 
 ## Architecture
 
-Frogman is the MCP server — the AI interface to the PBX. Frogman is the FreePBX module that provides the 210 tools it exposes. Together, they have two interfaces:
+Frogman is the MCP server — the AI interface to the PBX. Frogman is the FreePBX module that provides the 211 tools it exposes. Together, they have two interfaces:
 
-- **MCP Server** — the core product. Any AI connects via MCP and uses 210 tools to control, diagnose, and troubleshoot the PBX. This is where RAG, reasoning, and intelligent support happen.
+- **MCP Server** — the core product. Any AI connects via MCP and uses 211 tools to control, diagnose, and troubleshoot the PBX. This is where RAG, reasoning, and intelligent support happen.
 - **Web Console & CLI** — a human-friendly chat interface using pattern matching. Same tools, no AI required. Useful for quick tasks without an MCP client.
 
 ### Tool Routing Hierarchy
 
 Tools internally route by this priority:
 
-1. **GraphQL named operations** — preferred for cross-module CRUD
-2. **Direct DB reads** — for diagnostics/reporting
-3. **BMO PHP calls** — fallback where GraphQL coverage is missing
+1. **BMO PHP calls** — preferred for all operations
+2. **AMI commands** — live call control, channel operations
+3. **Direct DB reads** — diagnostics and reporting
 4. **fwconsole wrappers** — system ops only (reload, restart, module admin, backup)
 5. **Direct DB writes** — `oc_*` tables only
 
@@ -87,7 +87,7 @@ Reads from other modules' tables are fine. Writes to other modules go through BM
 - **Confirmation required** — all mutating operations return a dry-run preview unless `confirm: true` is passed.
 - **No user-supplied PHP, SQL, or shell** is ever executed.
 
-## Tool Catalog (210 tools)
+## Tool Catalog (211 tools)
 
 ### Extensions (6)
 

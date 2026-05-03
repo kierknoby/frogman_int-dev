@@ -6,7 +6,7 @@
 	<license>AGPLv3</license>
 	<licenselink>https://www.gnu.org/licenses/agpl-3.0.txt</licenselink>
 	<category>Admin</category>
-	<description>Complete PBX control through natural language from a web console, chat platforms, MCP, or any API client. 210 tools built entirely on FreePBX's native interfaces (BMO, GraphQL, AMI, fwconsole).</description>
+	<description>Complete PBX control through natural language from a web console, chat platforms, MCP, or any API client. 211 tools built entirely on FreePBX's native interfaces (BMO, GraphQL, AMI, fwconsole).</description>
 	<changelog>
 		*1.0.0* Initial release: 211 tools, MCP server, web console, CLI chat, knowledge base RAG, call flow visualizer, API token auth
 	</changelog>	<depends>
