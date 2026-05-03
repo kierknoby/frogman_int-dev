@@ -31,9 +31,9 @@ Frogman is a FreePBX module (`/var/www/html/admin/modules/frogman/`) that provid
 
 ## Key files
 
-- `Openclaw.class.php` — BMO class, audit log, tool registry, HTTP endpoints
+- `Frogman.class.php` — BMO class, audit log, tool registry, HTTP endpoints
 - `Tools/AbstractTool.php` — base class all tools extend
-- `Api/Gql/Openclaw.php` — GraphQL types, queries, mutations
+- `Api/Gql/Frogman.php` — GraphQL types, queries, mutations
 - `Console/Tool.class.php` — CLI harness (`fwconsole frogman:tool`)
 - `mcp-server.php` — MCP protocol server (stdio JSON-RPC)
 - `module.xml` — module metadata, dependencies, and database schema (Doctrine-style)

@@ -14,7 +14,7 @@ class Chat extends Command {
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
 		$freepbx = \FreePBX::Create();
-		$frogman = $freepbx->Openclaw;
+		$frogman = $freepbx->Frogman;
 		$sessionId = 'cli-' . posix_getuid() . '-' . getmypid();
 
 		require_once dirname(__DIR__) . '/Tools/ChatParser.php';

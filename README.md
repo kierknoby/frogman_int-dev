@@ -502,7 +502,7 @@ docs firewall
 ```
 frogman/
 ├── module.xml                 # Module metadata, dependencies, DB schema
-├── Openclaw.class.php         # BMO class — audit log, tool registry, HTTP endpoints
+├── Frogman.class.php         # BMO class — audit log, tool registry, HTTP endpoints
 ├── install.php                # Post-install hooks (minimal)
 ├── uninstall.php              # Cleanup hooks (minimal)
 ├── page.frogman.php           # Admin GUI page (display=frogman)
@@ -510,7 +510,7 @@ frogman/
 ├── mcp-config.example.json    # Claude Desktop config example
 ├── Api/
 │   └── Gql/
-│       └── Openclaw.php       # GraphQL types, queries, mutations
+│       └── Frogman.php       # GraphQL types, queries, mutations
 ├── Console/
 │   ├── Tool.class.php         # fwconsole frogman:tool command
 │   └── Chat.class.php         # fwconsole frogman:chat interactive console
