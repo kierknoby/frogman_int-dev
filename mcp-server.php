@@ -12,6 +12,9 @@
 // Configuration
 $FREEPBX_URL = getenv('FROGMAN_FREEPBX_URL') ?: 'http://localhost/admin/ajax.php';
 
+// Cap memory so a runaway tool/parser bug fails fast instead of consuming the box
+ini_set('memory_limit', '256M');
+
 // Disable output buffering for stdio
 ini_set('output_buffering', 'off');
 ini_set('implicit_flush', true);

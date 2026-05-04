@@ -13,6 +13,9 @@ class Chat extends Command {
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output): int {
+		// Cap parser memory so a runaway bug fails fast instead of swapping the box
+		ini_set('memory_limit', '256M');
+
 		$freepbx = \FreePBX::Create();
 		$frogman = $freepbx->Frogman;
 		$sessionId = 'cli-' . posix_getuid() . '-' . getmypid();

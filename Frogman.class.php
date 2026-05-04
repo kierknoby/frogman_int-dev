@@ -192,6 +192,9 @@ class Frogman extends \FreePBX_Helpers implements \BMO {
 			return;
 		}
 
+		// Cap chat parsing memory so a parser bug fails fast instead of OOM-killing the worker
+		ini_set('memory_limit', '256M');
+
 		$rawBody = file_get_contents('php://input');
 		$body = json_decode($rawBody, true);
 
