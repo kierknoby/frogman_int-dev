@@ -899,7 +899,37 @@ class ChatParser {
 			return ['tool' => 'fm_update_activation', 'params' => []];
 		}
 
-		// ── SIP Diagnostics ──
+		// ── Sangoma / DPMA ──
+		// Specific brand routes must come BEFORE generic ones so "sangoma" wins
+		// over the generic phone/extension parsers.
+		if (preg_match('/^diagnose\s+sangoma(?:\s+phone)?\s+(\d+)$/i', $msg, $m)) {
+			return ['tool' => 'fm_diagnose_sangoma_phone', 'params' => ['ext' => $m[1]]];
+		}
+		if (preg_match('/^sangoma\s+(?:diagnose|diag|check|health)\s+(\d+)$/i', $msg, $m)) {
+			return ['tool' => 'fm_diagnose_sangoma_phone', 'params' => ['ext' => $m[1]]];
+		}
+		if (preg_match('/^(?:list|show)\s+sangoma\s+phones?$/i', $lower)) {
+			return ['tool' => 'fm_list_sangoma_phones', 'params' => []];
+		}
+		if (preg_match('/^(?:show|get)\s+sangoma(?:\s+phone)?\s+(\d+)$/i', $msg, $m)) {
+			return ['tool' => 'fm_get_sangoma_phone', 'params' => ['ext' => $m[1]]];
+		}
+		if (preg_match('/^sangoma\s+phone\s+(\d+)$/i', $msg, $m)) {
+			return ['tool' => 'fm_get_sangoma_phone', 'params' => ['ext' => $m[1]]];
+		}
+		if (preg_match('/^(?:dpma|sangoma)\s+alerts?(?:\s+(?:for\s+)?(\d+))?$/i', $msg, $m)) {
+			$params = [];
+			if (!empty($m[1])) $params['ext'] = $m[1];
+			return ['tool' => 'fm_dpma_alerts', 'params' => $params];
+		}
+		if (preg_match('/^(?:dpma|sangoma)\s+licen[sc]es?(?:\s+status)?$/i', $lower)) {
+			return ['tool' => 'fm_dpma_license_status', 'params' => []];
+		}
+		if (preg_match('/^reboot\s+sangoma(?:\s+phone)?\s+(\d+)$/i', $msg, $m)) {
+			$params = ['ext' => $m[1]];
+			self::setPending($sessionId, 'fm_reboot_sangoma_phone', $params);
+			return ['tool' => 'fm_reboot_sangoma_phone', 'params' => $params];
+		}
 		if (preg_match('/^diagnose\s+(ext(ension)?)\s+(\d+)$/i', $msg, $m)) {
 			return ['tool' => 'fm_diagnose_extension', 'params' => ['ext' => $m[3]]];
 		}
@@ -1497,6 +1527,14 @@ class ChatParser {
   `why can't 1005 make calls` — same as above
   `diagnose trunk 1` — trunk diagnostic (registration, qualify, routes, CDR)
   `endpoint details 1005` — deep PJSIP endpoint info (codecs, transport, auth)
+
+**Sangoma / DPMA Phones:** (Sangoma-branded phones only)
+  `list sangoma phones` — every Sangoma phone DPMA knows about
+  `sangoma phone 1005` — DPMA detail for one phone (model, firmware, IP, state)
+  `diagnose sangoma 1005` — composite (mapping, license, registration, firmware, alerts, qualify)
+  `dpma alerts` / `sangoma alerts 1005` — phone-side issues DPMA has flagged
+  `dpma license` — license usage and headroom
+  `reboot sangoma 1005` — reboot a Sangoma phone (~30s downtime, requires confirm)
   `sip channels` — show active SIP channels
   `sip channels for 1005` — filtered by endpoint
   `start sip trace` / `start trace 15s` — capture SIP traffic (admin, max 30s)
