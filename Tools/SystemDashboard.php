@@ -37,16 +37,23 @@ class SystemDashboard extends AbstractTool {
 			}
 		}
 
-		// Extension count + registered
+		// Extension count from hints; registered count from actual PJSIP contacts.
+		// Avoid counting hint state because DND/CustomPresence can mark an unregistered
+		// extension as Busy and falsely inflate the registered count.
 		$extCount = 0;
 		$regCount = 0;
 		if ($astman && $astman->connected()) {
 			$res = $astman->Command('core show hints');
 			$raw = trim($res['data'] ?? '');
 			foreach (explode("\n", $raw) as $line) {
-				if (preg_match('/^(\d+)@ext-local\s+.*State:(\S+)/', $line, $m)) {
-					$extCount++;
-					if ($m[2] !== 'Unavailable') $regCount++;
+				if (preg_match('/^(\d+)@ext-local\s/', $line)) $extCount++;
+			}
+			$res2 = $astman->Command('pjsip show contacts');
+			$raw2 = trim($res2['data'] ?? '');
+			foreach (explode("\n", $raw2) as $line) {
+				// Lines look like:  Contact:  101/sip:101@1.2.3.4:1378;ob   <hash>  Avail   38.153
+				if (preg_match('/^\s*Contact:\s+\d+\/sip:\d+@.+\s+(Avail|Reachable)\s/', $line)) {
+					$regCount++;
 				}
 			}
 		}
