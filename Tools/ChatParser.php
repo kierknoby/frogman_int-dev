@@ -382,14 +382,15 @@ class ChatParser {
 		}
 
 		// ── Follow Me ──
-		if (preg_match('/^(set|configure|enable|setup)\s+follow\s*me$/i', $msg)) {
-			$prompts = [
-				['param' => 'ext', 'prompt' => 'Which extension? (e.g. `1001`)'],
-				['param' => 'numbers', 'prompt' => "What numbers should ring? (comma-separated, e.g. `1001,5551234567`)"],
-				['param' => 'ringtime', 'prompt' => 'Ring time in seconds? (default 20, or `skip`)', 'skip_default' => null],
-				['param' => 'strategy', 'prompt' => 'Strategy? Options: `ringallv2-prim` (desk first, then external — default), `ringallv2`, `ringall-prim`, `ringall`, `hunt-prim`, `hunt`, `memoryhunt-prim`, `memoryhunt`, `firstnotonphone`, `firstavailable`. Or `skip` for default.', 'skip_default' => null],
-			];
-			self::setInputWizard($sessionId, 'fm_set_followme', [], $prompts);
+		if (preg_match('/^(set|configure|enable|setup)\s+follow\s*me(?:\s+(?:on\s+|for\s+)?(\d+))?$/i', $msg, $m)) {
+			$preset = !empty($m[2]) ? ['ext' => $m[2]] : [];
+			$prompts = [];
+			if (empty($preset['ext'])) {
+				$prompts[] = ['param' => 'ext', 'prompt' => 'Which extension? (e.g. `1001`)'];
+			}
+			$prompts[] = ['param' => 'numbers', 'prompt' => "What numbers should ring? (comma-separated, e.g. `1001,5551234567`)"];
+			$prompts[] = ['param' => 'ringtime', 'prompt' => "Ring time? {{cmd:15|15s}} {{cmd:20|20s}} {{cmd:30|30s}} {{cmd:45|45s}} {{cmd:60|60s}} {{cmd:skip|⏭ Default (20s)}}", 'skip_default' => null];
+			self::setInputWizard($sessionId, 'fm_set_followme', $preset, $prompts);
 			return ['response' => $prompts[0]['prompt']];
 		}
 		if (preg_match('/^(set|configure|enable)\s+follow\s*me\s+(on\s+|for\s+)?(\d+)\s+(?:to\s+|ring\s+)?(.+)$/i', $msg, $m)) {
@@ -1554,7 +1555,8 @@ class ChatParser {
 
 **Follow Me:**
   `set followme on 1001 to 1001,5551234567`
-  `set follow me` — guided wizard
+  `set follow me` — guided wizard (asks ext, numbers, ringtime)
+  `set follow me 1001` — wizard skipping the ext prompt
   `clear followme on 1001`
 
 **Call Forward:**
