@@ -42,16 +42,32 @@ class SipTrace extends AbstractTool {
 				'expiry' => $expiry,
 			]));
 
-			// Capture from Asterisk log — tail the log for SIP messages during the window
+			// Capture from Asterisk log. Critical: must `tail -F` so we follow lines appended
+			// AFTER capture starts; a plain grep over the file finishes in milliseconds and
+			// captures only historical content (which is what was making this tool look broken —
+			// "0 data" on a call placed during the window). -n 0 starts at current EOF so we
+			// only see lines from the trace window.
 			$logFile = '/var/log/asterisk/full';
-			$startMark = date('Y-m-d H:i:s');
+			$pattern = 'PJSIP|SIP/2\\.0|sip:|CSeq|Via:|From:|To:|Call-ID|INVITE|BYE|REGISTER|ACK|CANCEL|OPTIONS';
+			$pgidFile = $traceFile . '.pgid';
+			@unlink($pgidFile);
 
-			// Run the capture in background with timeout
-			$cmd = sprintf(
-				'timeout %d grep -a --line-buffered "PJSIP\\|SIP/2.0\\|sip:\\|CSeq\\|Via:\\|From:\\|To:\\|Call-ID\\|INVITE\\|BYE\\|REGISTER\\|ACK\\|CANCEL\\|OPTIONS" %s > %s 2>/dev/null &',
-				$duration + 2,
+			// setsid creates a new process group with the shell as leader. We record that
+			// pgid so stop can kill the whole group (tail + grep + timeout) — pkill -f
+			// only matches the sh wrapper because the redirect path doesn't appear in
+			// tail's or grep's argv, leaving them as orphans otherwise.
+			// --line-buffered is critical: without it, grep block-buffers (~4KB) when stdout
+			// is a file, so a short trace flushes nothing before timeout kills it.
+			$inner = sprintf(
+				'tail -n 0 -F %s | grep -a --line-buffered -E %s > %s 2>/dev/null',
 				escapeshellarg($logFile),
+				escapeshellarg($pattern),
 				escapeshellarg($traceFile)
+			);
+			$cmd = sprintf(
+				'setsid sh -c %s >/dev/null 2>&1 & echo $! > %s',
+				escapeshellarg(sprintf('exec timeout %d sh -c %s', $duration + 2, escapeshellarg($inner))),
+				escapeshellarg($pgidFile)
 			);
 			exec($cmd);
 
@@ -67,7 +83,18 @@ class SipTrace extends AbstractTool {
 			// Disable PJSIP logger
 			$astman->Command('pjsip set logger off');
 
-			// Kill any running capture
+			// Kill the capture process group (setsid leader recorded at start). The negative
+			// PID in `kill -- -<pgid>` signals every process in the group, so tail and grep
+			// die alongside the wrapper instead of being orphaned.
+			$pgidFile = $traceFile . '.pgid';
+			if (file_exists($pgidFile)) {
+				$pgid = trim((string)@file_get_contents($pgidFile));
+				if ($pgid !== '' && ctype_digit($pgid)) {
+					exec('kill -TERM -' . (int)$pgid . ' 2>/dev/null');
+				}
+				@unlink($pgidFile);
+			}
+			// Belt-and-suspenders: clean up anything lingering that targets our trace file.
 			exec('pkill -f "frogman_sip_trace" 2>/dev/null');
 
 			// Read captured data
