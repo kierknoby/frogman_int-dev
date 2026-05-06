@@ -1,6 +1,6 @@
 # Frogman 🐸
 
-**Headless PBX control through MCP and HTTP API.** Any AI, bot, or app connects and manages FreePBX through 220 tools. No GraphQL needed.
+**Headless PBX control through MCP and HTTP API.** Any AI, bot, or app connects and manages FreePBX through 221 tools. No GraphQL needed.
 
 Connect via MCP and ask "why can't extension 101 make calls?" — Frogman runs live diagnostics, searches its built-in knowledge base, and hands the AI everything it needs to answer.
 
@@ -235,7 +235,7 @@ Reads from other modules' tables are fine. Writes to other modules go through BM
 | `fm_list_moh` | List music on hold categories |
 | `fm_list_recordings` | List all system recordings |
 
-### System (7)
+### System (8)
 
 | Tool | Description |
 |------|-------------|
@@ -246,6 +246,7 @@ Reads from other modules' tables are fine. Writes to other modules go through BM
 | `fm_get_asterisk_info` | Asterisk uptime, version, channels, registrations |
 | `fm_get_firewall_status` | Firewall and intrusion detection status |
 | `fm_get_sip_settings` | SIP/PJSIP settings — external IP, NAT, ports |
+| `fm_repair_userman_links` | Restore default-group + assigned wiring on User Manager users so UCP login works **[confirm]** — chat: `repair userman`, `fix ucp logins`, `repair userman 1001` |
 
 ### Live Call Control (7) — via AMI
 

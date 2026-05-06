@@ -1220,6 +1220,13 @@ class ChatParser {
 			return ['tool' => 'fm_chown', 'params' => []];
 		}
 
+		// ── Repair User Manager links (UCP login fix) ──
+		if (preg_match('/^(repair|fix)\s+(userman(?:\s+links?)?|ucp(?:\s+logins?)?)(?:\s+(?:for\s+|on\s+)?(\d+))?$/i', $msg, $m)) {
+			$params = !empty($m[3]) ? ['ext' => $m[3]] : [];
+			self::setPending($sessionId, 'fm_repair_userman_links', $params);
+			return ['tool' => 'fm_repair_userman_links', 'params' => $params];
+		}
+
 		// ── External IP ──
 		if (preg_match('/^(external\s+ip|public\s+ip|my\s+ip|what.s\s+my\s+ip)$/i', $lower)) {
 			return ['tool' => 'fm_get_external_ip', 'params' => []];
@@ -1524,6 +1531,8 @@ class ChatParser {
   `asterisk info` / `uptime`
   `show sip settings` / `show firewall`
   `audit 10`
+  `repair userman` / `fix ucp logins` — restore default-group + assigned wiring for UCP login
+  `repair userman 1001` — repair just one extension
 
 **Misc Destinations:**
   `list destinations`
