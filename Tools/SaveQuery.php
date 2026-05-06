@@ -10,7 +10,7 @@ class SaveQuery extends AbstractTool {
 	}
 
 	public function description() {
-		return 'Save a named GraphQL query. Validates that the query parses correctly. Params: name (required), query (required GraphQL string), param_spec (optional JSON describing variable types).';
+		return 'Save a named GraphQL query. Validates that the query parses correctly. Params: name (required), query (required GraphQL string), param_spec (optional JSON describing variable types). Requires confirm:true.';
 	}
 
 	public function validate($params) {
@@ -32,6 +32,7 @@ class SaveQuery extends AbstractTool {
 
 	public function permissionLevel() { return self::PERM_WRITE; }
 	public function execute($params, $context) {
+		$confirm = !empty($params['confirm']) && $params['confirm'] === true;
 		$name = $params['name'];
 		$query = $params['query'];
 		$paramSpec = $params['param_spec'] ?? '{}';
@@ -61,6 +62,14 @@ class SaveQuery extends AbstractTool {
 		$sth = $db->prepare("SELECT id FROM oc_saved_queries WHERE name = ?");
 		$sth->execute([$name]);
 		$existing = $sth->fetch(\PDO::FETCH_ASSOC);
+
+		if (!$confirm) {
+			$action = !empty($existing) ? 'overwrite' : 'create';
+			return [
+				'dry_run' => true,
+				'message' => "Would {$action} saved query `{$name}`. Reply yes to confirm.",
+			];
+		}
 
 		if (!empty($existing)) {
 			// Update existing
