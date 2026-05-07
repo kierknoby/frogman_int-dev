@@ -122,7 +122,117 @@ $(function() {
 		sendMessage($input.val());
 	});
 
+	// ── Typeahead suggestions (dropdown that filters as you type) ──────────
+	// Defensive cast: json_encode in PHP turns numeric strings into JS numbers, which would
+	// blow up .toLowerCase() at the first keystroke. Force everything to string here.
+	var SUGGESTIONS = (window.FROGMAN_SUGGESTIONS || []).map(function(s) { return String(s); });
+	var $typeahead = $('#oc-typeahead');
+	var typeaheadActiveIdx = -1;
+	var typeaheadCurrent = []; // currently displayed list
+	// Don't pop up when the input is one of these (mid-confirm / mid-input-prompt).
+	var SUPPRESS_TOKENS = ['yes','y','no','n','cancel','skip','nevermind','nope','abort','ok','sure'];
+	var MAX_TYPEAHEAD = 8;
+
+	function typeaheadOpen() { return !$typeahead.prop('hidden') && $typeahead.is(':visible'); }
+	function typeaheadHide() { $typeahead.empty().prop('hidden', true); typeaheadActiveIdx = -1; typeaheadCurrent = []; }
+	function typeaheadHighlight(text, q) {
+		// Bold the matched substring (case-insensitive). Falls back to plain text if no match.
+		if (!q) return escapeHtml(text);
+		var i = text.toLowerCase().indexOf(q.toLowerCase());
+		if (i < 0) return escapeHtml(text);
+		return escapeHtml(text.slice(0, i)) + '<b>' + escapeHtml(text.slice(i, i + q.length)) + '</b>' + escapeHtml(text.slice(i + q.length));
+	}
+	function typeaheadScore(phrase, q) {
+		var p = phrase.toLowerCase(), x = q.toLowerCase();
+		if (p === x) return 1000;
+		if (p.indexOf(x) === 0) return 500;            // prefix match
+		if (p.split(/\s+/).some(function(w) { return w.indexOf(x) === 0; })) return 250; // word-prefix
+		var i = p.indexOf(x);
+		if (i >= 0) return 100 - i;                    // substring (closer = better)
+		return -1;
+	}
+	function typeaheadRefresh() {
+		var q = $input.val().trim();
+		if (q.length < 2 || SUPPRESS_TOKENS.indexOf(q.toLowerCase()) !== -1) {
+			typeaheadHide();
+			return;
+		}
+		var scored = [];
+		for (var i = 0; i < SUGGESTIONS.length; i++) {
+			var s = SUGGESTIONS[i];
+			var score = typeaheadScore(s, q);
+			if (score >= 0) scored.push({ phrase: s, score: score });
+		}
+		if (!scored.length) { typeaheadHide(); return; }
+		scored.sort(function(a, b) { return b.score - a.score || a.phrase.length - b.phrase.length; });
+		typeaheadCurrent = scored.slice(0, MAX_TYPEAHEAD).map(function(x) { return x.phrase; });
+		typeaheadActiveIdx = 0;
+		var html = typeaheadCurrent.map(function(p, idx) {
+			return '<div class="oc-typeahead-item' + (idx === 0 ? ' active' : '') + '" data-idx="' + idx + '">' + typeaheadHighlight(p, q) + '</div>';
+		}).join('');
+		$typeahead.html(html).prop('hidden', false);
+	}
+	function typeaheadSelect(idx) {
+		if (idx < 0 || idx >= typeaheadCurrent.length) return;
+		$input.val(typeaheadCurrent[idx]).focus();
+		// Cursor at end so user can append params if needed.
+		var el = $input[0];
+		el.setSelectionRange(el.value.length, el.value.length);
+		typeaheadHide();
+	}
+	$input.off('input').on('input', function() {
+		historyIndex = -1; // any new typing exits history navigation
+		typeaheadRefresh();
+	});
+	$typeahead.off('mousedown').on('mousedown', '.oc-typeahead-item', function(e) {
+		e.preventDefault(); // prevent input blur
+		typeaheadSelect(parseInt($(this).data('idx'), 10));
+	});
+	$typeahead.off('mousemove').on('mousemove', '.oc-typeahead-item', function() {
+		var idx = parseInt($(this).data('idx'), 10);
+		if (idx === typeaheadActiveIdx) return;
+		$typeahead.find('.oc-typeahead-item').removeClass('active');
+		$(this).addClass('active');
+		typeaheadActiveIdx = idx;
+	});
+	$(document).on('click.octa', function(e) {
+		if (!$(e.target).closest('#oc-typeahead, #oc-input').length) typeaheadHide();
+	});
+
 	$input.off('keydown').on('keydown', function(e) {
+		// Typeahead-aware key handling — when dropdown is open, take over arrows/Enter/Tab.
+		if (typeaheadOpen()) {
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				typeaheadActiveIdx = (typeaheadActiveIdx + 1) % typeaheadCurrent.length;
+				$typeahead.find('.oc-typeahead-item').removeClass('active').eq(typeaheadActiveIdx).addClass('active');
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				typeaheadActiveIdx = (typeaheadActiveIdx - 1 + typeaheadCurrent.length) % typeaheadCurrent.length;
+				$typeahead.find('.oc-typeahead-item').removeClass('active').eq(typeaheadActiveIdx).addClass('active');
+				return;
+			}
+			if (e.key === 'Tab') {
+				e.preventDefault();
+				typeaheadSelect(typeaheadActiveIdx);
+				return;
+			}
+			if (e.key === 'Enter' && !e.shiftKey) {
+				// Pick suggestion (fill input, don't send) — Shift+Enter sends as-is.
+				e.preventDefault();
+				typeaheadSelect(typeaheadActiveIdx);
+				return;
+			}
+			if (e.key === 'Escape') {
+				e.preventDefault();
+				typeaheadHide();
+				return;
+			}
+		}
+
+		// Default behavior — Enter sends, Up/Down navigate history.
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			sendMessage($input.val());

@@ -549,11 +549,14 @@ class ChatParser {
 		if (preg_match('/^(list|show|get)\s+(all\s+)?(ext|extensions?)$/i', $lower)) {
 			return ['tool' => 'fm_list_extensions', 'params' => []];
 		}
-		if (preg_match('/^(list|show|search|find)\s+(ext|extensions?)\s+(.+)$/i', $msg, $m)) {
-			return ['tool' => 'fm_list_extensions', 'params' => ['search' => trim($m[3])]];
-		}
+		// Digit-only "show extension <num>" must come BEFORE the search pattern below,
+		// otherwise "show extension 100" hits the list-with-search and substring-matches
+		// 100, 1000, 1001, etc.
 		if (preg_match('/^(get|show|info|details?)\s+(ext|extension)\s+(\d+)$/i', $msg, $m)) {
 			return ['tool' => 'fm_get_extension', 'params' => ['ext' => $m[3]]];
+		}
+		if (preg_match('/^(list|show|search|find)\s+(ext|extensions?)\s+(.+)$/i', $msg, $m)) {
+			return ['tool' => 'fm_list_extensions', 'params' => ['search' => trim($m[3])]];
 		}
 		if (preg_match('/^(health|status|check)\s+(ext|extension)?\s*(\d+)$/i', $msg, $m)) {
 			return ['tool' => 'fm_get_extension_health', 'params' => ['ext' => $m[3]]];
@@ -1831,6 +1834,33 @@ class ChatParser {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Return the canonical list of chat-input suggestions for the typeahead.
+	 * Parses helpText() so suggestions stay in sync as commands are added —
+	 * any new tool whose phrases are documented in help() automatically
+	 * appears in the input dropdown.
+	 */
+	public static function getSuggestions() {
+		$help = self::helpText();
+		// Pull every backtick-quoted phrase out of the help body.
+		preg_match_all('/`([^`\n]+)`/', $help, $m);
+		$out = [];
+		foreach ($m[1] as $phrase) {
+			$p = trim($phrase);
+			// Skip template-ish strings (PHP variable interpolation, placeholders).
+			if (strpos($p, '$') !== false) continue;
+			if (strpos($p, '{') !== false) continue;
+			if ($p === '') continue;
+			// Skip bare-number placeholders ("1001"). Not a useful command on its own,
+			// AND json_encode would turn them into JS numbers (breaking phrase.toLowerCase()).
+			if (preg_match('/^\d+$/', $p)) continue;
+			$out[$p] = true;
+		}
+		$out = array_keys($out);
+		sort($out, SORT_NATURAL | SORT_FLAG_CASE);
+		return $out;
 	}
 
 	private static function helpText() {

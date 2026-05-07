@@ -115,7 +115,34 @@
 	padding: 10px;
 	background: #fff;
 	border-radius: 0 0 6px 6px;
+	position: relative; /* anchor for absolute-positioned typeahead */
 }
+.oc-typeahead {
+	position: absolute;
+	left: 10px;
+	right: 60px; /* leaves room for the Send button */
+	bottom: calc(100% - 1px);
+	background: #fff;
+	border: 1px solid #b8dede;
+	border-bottom: none;
+	border-radius: 6px 6px 0 0;
+	box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+	max-height: 280px;
+	overflow-y: auto;
+	z-index: 50;
+}
+.oc-typeahead-item {
+	padding: 7px 12px;
+	font-size: 13px;
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	color: #1a2e2d;
+	cursor: pointer;
+	border-bottom: 1px solid #f0f6f6;
+}
+.oc-typeahead-item:last-child { border-bottom: none; }
+.oc-typeahead-item.active { background: #009d9d; color: #fff; }
+.oc-typeahead-item.active b { color: #fff; }
+.oc-typeahead-item b { color: #009d9d; font-weight: 600; }
 .oc-chat-input input {
 	flex: 1;
 	border: 1px solid #b8dede;
@@ -259,6 +286,13 @@
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 	padding: 2px 10px 4px;
+}
+.oc-sidebar-hint {
+	font-size: 11px;
+	color: #6b7c7b;
+	padding: 4px 10px 8px;
+	line-height: 1.4;
+	font-style: italic;
 }
 .oc-write-btn {
 	border-left: 3px solid #f3a25e;

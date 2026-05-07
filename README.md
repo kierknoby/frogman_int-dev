@@ -1,6 +1,6 @@
 # Frogman 🐸
 
-**Headless PBX control through MCP and HTTP API.** Any AI, bot, or app connects and manages FreePBX through 222 tools. No GraphQL needed.
+**Headless PBX control through MCP and HTTP API.** Any AI, bot, or app connects and manages FreePBX through 223 tools. No GraphQL needed.
 
 Connect via MCP and ask "why can't extension 101 make calls?" — Frogman runs live diagnostics, searches its built-in knowledge base, and hands the AI everything it needs to answer.
 
@@ -75,9 +75,9 @@ This is optional — all other tools work without it. Without this, service tool
 
 ## Architecture
 
-Frogman is the MCP server — the AI interface to the PBX. Frogman is the FreePBX module that provides the 222 tools it exposes. Together, they have two interfaces:
+Frogman is the MCP server — the AI interface to the PBX. Frogman is the FreePBX module that provides the 223 tools it exposes. Together, they have two interfaces:
 
-- **MCP Server** — the core product. Any AI connects via MCP and uses 222 tools to control, diagnose, and troubleshoot the PBX. This is where RAG, reasoning, and intelligent support happen.
+- **MCP Server** — the core product. Any AI connects via MCP and uses 223 tools to control, diagnose, and troubleshoot the PBX. This is where RAG, reasoning, and intelligent support happen.
 - **Web Console & CLI** — a human-friendly chat interface using pattern matching. Same tools, no AI required. Useful for quick tasks without an MCP client.
 
 ### Tool Routing Hierarchy
@@ -113,7 +113,7 @@ Reads from other modules' tables are fine. Writes to other modules go through BM
 - **Confirmation required** — all mutating operations return a dry-run preview unless `confirm: true` is passed.
 - **No user-supplied PHP, SQL, or shell** is ever executed.
 
-## Tool Catalog (222 tools)
+## Tool Catalog (223 tools)
 
 ### Extensions (7)
 
@@ -415,6 +415,7 @@ The chat parser maps natural-language phrases to tools. A non-exhaustive sample:
 | `list sangoma phones`, `diagnose sangoma 1005`, `reboot sangoma 1005` | DPMA phone tools |
 | `dpma alerts`, `dpma license` | DPMA diagnostics |
 | `trace flow 1010` / `where does 5551234 go` | `fm_trace_call_flow` |
+| `did map` / `inbound map` / `where do my dids go` | `fm_did_destination_map` (Mermaid flowchart of every DID and where it lands) |
 | `search jane` / `find queue 600` | `fm_search` |
 | `kb voicemail setup` / `how do i add a trunk` / `troubleshoot one-way audio` | `fm_search_docs` (knowledge base) |
 | Question ending in `?` | falls through to KB search |

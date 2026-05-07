@@ -355,12 +355,64 @@ class Frogman extends \FreePBX_Helpers implements \BMO {
 			case 'fm_get_extension':
 				$u = $data['user'] ?? [];
 				$d = $data['device'] ?? [];
-				return "**Extension {$data['extension']}**\n"
-					. "  Name: {$u['name']}\n"
-					. "  Tech: " . ($d['tech'] ?? 'n/a') . "\n"
-					. "  CID Masquerade: " . ($u['cid_masquerade'] ?? 'n/a') . "\n"
-					. "  Call Waiting: " . ($u['callwaiting'] ?? 'n/a') . "\n"
-					. "  Voicemail: " . ($u['voicemail'] ?? 'n/a');
+				$ext = $data['extension'];
+				// Live registration cross-reference — handy to know if the phone is actually online.
+				$contacts = [];
+				try {
+					$contacts = \FreePBX::Endpoint()->getpjsipAORContactIpsByExten($ext) ?: [];
+				} catch (\Throwable $e) {}
+				$reg = !empty($contacts) ? '✓ registered (' . count($contacts) . ')' : '✗ not registered';
+
+				$lines = ["📱 **Extension {$ext}** — " . ($u['name'] ?? '(no name)')];
+				$lines[] = "  Tech: " . ($d['tech'] ?? 'n/a') . " · {$reg}";
+				if (!empty($d['callerid'])) $lines[] = "  Caller ID: {$d['callerid']}";
+				if (!empty($u['outboundcid'])) $lines[] = "  Outbound CID: {$u['outboundcid']}";
+				if (!empty($d['context']) && $d['context'] !== 'from-internal') $lines[] = "  Context: {$d['context']}";
+
+				// Voicemail
+				$vm = $u['voicemail'] ?? '';
+				if ($vm && $vm !== 'novm') $lines[] = "  Voicemail: ✓ ({$vm})";
+				else $lines[] = "  Voicemail: ✗";
+
+				// Features
+				$features = [];
+				if (($u['callwaiting'] ?? '') === 'enabled') $features[] = 'call waiting';
+				if (($u['intercom'] ?? '') === 'enabled') $features[] = 'intercom';
+				if (($u['answermode'] ?? '') === 'enabled') $features[] = 'auto-answer';
+				if (($u['call_screen'] ?? '0') !== '0') $features[] = 'call screen';
+				if (!empty($features)) $lines[] = "  Features: " . implode(', ', $features);
+
+				// Recording (only show if any are non-default)
+				$recordingFields = ['recording_in_external','recording_out_external','recording_in_internal','recording_out_internal'];
+				$rec = [];
+				foreach ($recordingFields as $f) {
+					$v = $u[$f] ?? 'dontcare';
+					if ($v !== 'dontcare') {
+						$label = str_replace(['recording_','_'], ['',' '], $f);
+						$rec[] = "{$label}={$v}";
+					}
+				}
+				if (!empty($rec)) $lines[] = "  Recording: " . implode(', ', $rec);
+
+				// Ring timer / no-answer destination
+				if (!empty($u['ringtimer']) && (int)$u['ringtimer'] > 0) $lines[] = "  Ring timer: {$u['ringtimer']}s";
+				if (!empty($u['noanswer_dest'])) $lines[] = "  No-answer dest: {$u['noanswer_dest']}";
+
+				// PJSIP NAT triple — useful diagnostic at a glance
+				if (($d['tech'] ?? '') === 'pjsip') {
+					$nat = [];
+					if (isset($d['rtp_symmetric']))   $nat[] = "rtp_symmetric=" . $d['rtp_symmetric'];
+					if (isset($d['force_rport']))     $nat[] = "force_rport=" . $d['force_rport'];
+					if (isset($d['rewrite_contact'])) $nat[] = "rewrite_contact=" . $d['rewrite_contact'];
+					if (!empty($nat)) $lines[] = "  NAT: " . implode(' · ', $nat);
+					if (!empty($d['allow'])) $lines[] = "  Codecs: {$d['allow']}";
+					if (!empty($d['transport'])) $lines[] = "  Transport: {$d['transport']}";
+				}
+
+				// Quick-action chips
+				$lines[] = "";
+				$lines[] = "  {{cmd:diagnose ext {$ext}|🔍 Diagnose}} · {{cmd:health {$ext}|🩺 Health}} · {{cmd:endpoint details {$ext}|🔧 PJSIP detail}} · {{cmd:show forward on {$ext}|↪ Forward}} · {{cmd:show dnd on {$ext}|🌙 DND}}";
+				return implode("\n", $lines);
 
 			case 'fm_get_extension_health':
 				$reg = $data['registered'] ? 'Registered' : 'Not registered';
