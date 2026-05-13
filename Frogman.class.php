@@ -2196,18 +2196,53 @@ class Frogman extends \FreePBX_Helpers implements \BMO {
 
 	// ── Audit Log ──────────────────────────────────────────────
 
+	// Keys whose values should never land in oc_audit_log. Matched case-insensitively
+	// against array keys before JSON-encoding either params or the tool response. See
+	// GHSA-3p65-2prr-cfvf — without this, fm_reset_password's outcome (which returns
+	// the new password) and fm_add_extension's outcome (which returns the device
+	// secret) become readable by anyone who can call fm_audit_search.
+	//
+	// IMPORTANT CONSTRAINT: this redactor matches by ARRAY KEY name, not by value
+	// content. If a tool returns a sensitive value inside a free-text string
+	// (e.g. `'message' => "Password reset. New password: hunter2"`), the redactor
+	// will NOT catch it — `message` is not in the set, and the password is part
+	// of the value, not under its own key.
+	//
+	// When adding new tools that return secrets:
+	//   - Always surface secrets under one of these keys (or extend this list).
+	//   - Never embed secrets in `message` / `note` / `summary` / arbitrary text.
+	//   - If a new key name is needed, ADD IT HERE and to install.php (which uses
+	//     a duplicate of this list for the historical scrub migration).
+	private static $SENSITIVE_AUDIT_KEYS = [
+		'password', 'secret', 'token', 'vmpwd', 'umpassword', 'umpwd', 'api_key', 'apikey',
+	];
+
+	private function redactSensitive($data) {
+		if (!is_array($data)) return $data;
+		$redactSet = array_flip(self::$SENSITIVE_AUDIT_KEYS);
+		foreach ($data as $key => $value) {
+			if (is_string($key) && isset($redactSet[strtolower($key)])) {
+				$data[$key] = '[REDACTED]';
+			} elseif (is_array($value)) {
+				$data[$key] = $this->redactSensitive($value);
+			}
+		}
+		return $data;
+	}
+
 	public function auditIntent($tool, $params, $userId = null, $sessionId = null) {
 		$sql = "INSERT INTO oc_audit_log (tool, params, user_id, session_id, intent, status, created_at)
 		        VALUES (?, ?, ?, ?, ?, 'pending', ?)";
 		$sth = $this->db->prepare($sql);
-		$sth->execute([$tool, json_encode($params), $userId, $sessionId, "Execute {$tool}", time()]);
+		$sth->execute([$tool, json_encode($this->redactSensitive($params)), $userId, $sessionId, "Execute {$tool}", time()]);
 		return (int) $this->db->lastInsertId();
 	}
 
 	public function auditOutcome($auditId, $status, $detail = null) {
 		$sql = "UPDATE oc_audit_log SET status = ?, detail = ?, completed_at = ? WHERE id = ?";
 		$sth = $this->db->prepare($sql);
-		$sth->execute([$status, is_string($detail) ? $detail : json_encode($detail), time(), $auditId]);
+		$encoded = is_string($detail) ? $detail : json_encode($this->redactSensitive($detail));
+		$sth->execute([$status, $encoded, time(), $auditId]);
 	}
 
 	public function getAuditCount() {
