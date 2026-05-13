@@ -1,13 +1,14 @@
 <module>
 	<rawname>frogman</rawname>
 	<name>Frogman</name>
-	<version>1.6.1</version>
+	<version>1.6.2</version>
 	<publisher>Frogman Project</publisher>
 	<license>AGPLv3</license>
 	<licenselink>https://www.gnu.org/licenses/agpl-3.0.txt</licenselink>
 	<category>Admin</category>
 	<description>Complete PBX control through natural language from a web console, chat platforms, MCP, or any API client. 219 tools built entirely on FreePBX's native interfaces (BMO, GraphQL, AMI, fwconsole).</description>
 	<changelog><![CDATA[
+		*1.6.2* Install/upgrade-path fix for v1.6.1. The v1.6.1 install.php contained `$db = FreePBX::Database();` at file scope. FreePBX `require`s install.php from inside _runscripts() in modulefunctions.class.php, so the bare assignment leaked into the parent scope and replaced the legacy DB-class `$db` global with a BMO `FreePBX\Database` instance. The legacy DB's `escapeSimple` strips quotes (PearDB-compatible); the BMO Database's `escapeSimple` is `PDO::quote()` which keeps them. modulefunctions.class.php:2077 then double-quoted the version string and the modulename, producing `UPDATE modules SET version=''1.6.2'' WHERE modulename=''frogman''` — a SQL syntax error that aborted the install partway, leaving the module in a "Disabled; Pending upgrade" state requiring manual `mysql -e \"UPDATE modules SET version=...\"` recovery. v1.6.2 renames the local to `$frogmanDb` and documents the constraint. Anyone who hit this on v1.6.1: after upgrading to v1.6.2, run `fwconsole ma install frogman` again and it will complete cleanly. No security fixes; this is the install-path regression fix only.
 		*1.6.1* **Security release.** Patches four advisories disclosed via responsible disclosure on the FreePBX community forum on 2026-05-13:
 
 		- GHSA-pxfc-q72v-jh8m (Critical, CVSS 9.9): dialplan template parameter injection in fm_dialplan_apply. A PERM_WRITE caller could inject arbitrary Asterisk dialplan (System(), SHELL(), unexpected Goto) via newlines or special characters in any template parameter. Templates now validate inputs against per-parameter whitelists, with a framework-level reject for newline/CR/null in any value across all 9 templates.

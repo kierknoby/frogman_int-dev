@@ -3,8 +3,17 @@ if (!defined('FREEPBX_IS_AUTH')) { die('No direct script access allowed'); }
 // Schema is defined in module.xml <database> blocks.
 // This file is reserved for feature codes, kvstore defaults, or data migrations.
 // Migrations are written to be idempotent so install.php is safe to re-run.
+//
+// IMPORTANT: do NOT assign to `$db` in this file. FreePBX's install runner
+// `require`s install.php from inside _runscripts() in modulefunctions.class.php,
+// and a bare `$db = ...` assignment leaks into the parent scope. The parent
+// then re-fetches `global $db` and finds the BMO Database object instead of
+// the legacy DB class — BMO's escapeSimple returns PDO::quote() (already
+// quoted), and modulefunctions wraps the result in quotes again. Result:
+// `UPDATE modules SET version=''1.6.1'' WHERE modulename=''frogman''`,
+// SQL syntax error, install fails partway. Use a local-named variable.
 
-$db = FreePBX::Database();
+$frogmanDb = FreePBX::Database();
 
 // GHSA-9xf5-9ghq-p6cw — hash existing plaintext API tokens in oc_api_tokens.
 // Stored format: `sha256$<64-hex-hash>` (71 chars). The prefix makes the migration
@@ -15,8 +24,8 @@ $db = FreePBX::Database();
 // can miss column-width bumps on some FreePBX versions, and an unwidened column
 // would silently truncate the stored hash. Idempotent MODIFY is cheap insurance.
 try {
-	$db->query("ALTER TABLE oc_api_tokens MODIFY COLUMN token VARCHAR(80) NOT NULL DEFAULT ''");
-	$db->query("UPDATE oc_api_tokens SET token = CONCAT('sha256\$', SHA2(token, 256)) WHERE token != '' AND token NOT LIKE 'sha256\$%'");
+	$frogmanDb->query("ALTER TABLE oc_api_tokens MODIFY COLUMN token VARCHAR(80) NOT NULL DEFAULT ''");
+	$frogmanDb->query("UPDATE oc_api_tokens SET token = CONCAT('sha256\$', SHA2(token, 256)) WHERE token != '' AND token NOT LIKE 'sha256\$%'");
 	if (function_exists('out')) {
 		out(_("Frogman: ensured all API tokens are stored hashed (GHSA-9xf5-9ghq-p6cw)."));
 	}
@@ -51,7 +60,7 @@ try {
 	$batchSize = 500;
 	$scrubbed = 0;
 	while (true) {
-		$rows = $db->query("SELECT id, params, detail FROM oc_audit_log ORDER BY id LIMIT {$batchSize} OFFSET {$offset}")->fetchAll(\PDO::FETCH_ASSOC);
+		$rows = $frogmanDb->query("SELECT id, params, detail FROM oc_audit_log ORDER BY id LIMIT {$batchSize} OFFSET {$offset}")->fetchAll(\PDO::FETCH_ASSOC);
 		if (empty($rows)) break;
 		foreach ($rows as $row) {
 			$updates = [];
@@ -69,7 +78,7 @@ try {
 			}
 			if (!empty($updates)) {
 				$binds[] = $row['id'];
-				$sth = $db->prepare("UPDATE oc_audit_log SET " . implode(', ', $updates) . " WHERE id = ?");
+				$sth = $frogmanDb->prepare("UPDATE oc_audit_log SET " . implode(', ', $updates) . " WHERE id = ?");
 				$sth->execute($binds);
 				$scrubbed++;
 			}
