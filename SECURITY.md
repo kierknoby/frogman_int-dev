@@ -30,6 +30,6 @@ In scope:
 - The tool registry and individual tools under `Tools/`
 
 Out of scope:
-- Vulnerabilities in FreePBX core, Asterisk, or other FreePBX modules — those should go to the FreePBX security team
+- Vulnerabilities in FreePBX core, Asterisk, or other FreePBX modules — report those to the FreePBX security team at **https://github.com/FreePBX/security-reporting/security/advisories/new** (their canonical private-disclosure channel; published advisories live at https://github.com/FreePBX/security-reporting/security/advisories)
 - Issues that require local root on the PBX host to exploit (you're already inside)
 - Theoretical issues with no realistic exploit path against a default Frogman install
