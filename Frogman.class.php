@@ -2201,6 +2201,18 @@ class Frogman extends \FreePBX_Helpers implements \BMO {
 	// GHSA-3p65-2prr-cfvf — without this, fm_reset_password's outcome (which returns
 	// the new password) and fm_add_extension's outcome (which returns the device
 	// secret) become readable by anyone who can call fm_audit_search.
+	//
+	// IMPORTANT CONSTRAINT: this redactor matches by ARRAY KEY name, not by value
+	// content. If a tool returns a sensitive value inside a free-text string
+	// (e.g. `'message' => "Password reset. New password: hunter2"`), the redactor
+	// will NOT catch it — `message` is not in the set, and the password is part
+	// of the value, not under its own key.
+	//
+	// When adding new tools that return secrets:
+	//   - Always surface secrets under one of these keys (or extend this list).
+	//   - Never embed secrets in `message` / `note` / `summary` / arbitrary text.
+	//   - If a new key name is needed, ADD IT HERE and to install.php (which uses
+	//     a duplicate of this list for the historical scrub migration).
 	private static $SENSITIVE_AUDIT_KEYS = [
 		'password', 'secret', 'token', 'vmpwd', 'umpassword', 'umpwd', 'api_key', 'apikey',
 	];
