@@ -7,6 +7,14 @@ class GetVoicemail extends AbstractTool {
 	public function description() { return 'Get voicemail box details and message count. Params: ext (required).'; }
 	public function validate($params) {
 		if (empty($params['ext'])) return 'Parameter "ext" is required';
+		// Defense in depth: $ext is interpolated into a filesystem path
+		// (/var/spool/asterisk/voicemail/default/{ext}) later in execute().
+		// Voicemail BMO's getMailbox() throws first for non-existent boxes
+		// today, but a numeric-only check is one line of cheap insurance
+		// against a future BMO behavior change letting a non-numeric value through.
+		if (!preg_match('/^\d+$/', (string)$params['ext'])) {
+			return 'Parameter "ext" must be numeric';
+		}
 		return true;
 	}
 	public function requiredPermission() { return null; }

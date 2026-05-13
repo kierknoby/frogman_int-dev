@@ -12,8 +12,12 @@ class FwconsoleCmd extends AbstractTool {
 		if (preg_match('/[;&|`$(){}]/', $args)) {
 			return 'Shell metacharacters are not allowed';
 		}
-		// Whitelist: only allow known safe fwconsole subcommands
-		$allowed = '/^(ma\s+(list|install|uninstall|enable|disable|upgrade|upgradeall|download)|sa\s+(info|update)|pm2|reload|restart|start|stop|chown|status|--version|-V|context|certificates)/i';
+		// Whitelist: only allow known safe fwconsole subcommands.
+		// Trailing (\s|$) anchor required so a bare token (e.g. `context`) doesn't
+		// prefix-match a longer subcommand name (e.g. `contextual`, hypothetical
+		// future `context-foo`). Every alternation entry must match either a full
+		// token to end-of-string or be followed by a space (then args).
+		$allowed = '/^(ma\s+(list|install|uninstall|enable|disable|upgrade|upgradeall|download)|sa\s+(info|update)|pm2|reload|restart|start|stop|chown|status|--version|-V|context|certificates)(\s|$)/i';
 		if (!preg_match($allowed, $args)) {
 			return 'Command not in allowed list. Use specific Frogman tools instead.';
 		}
@@ -24,7 +28,8 @@ class FwconsoleCmd extends AbstractTool {
 	public function execute($params, $context) {
 		$args = $params['args'];
 		$confirm = !empty($params['confirm']) && $params['confirm'] === true;
-		$readOnly = preg_match('/^(ma\s+list|sa\s+info|pm2|status|--version|-V|context)/i', $args);
+		// Same trailing-anchor fix as the allowlist above — keep these in sync.
+		$readOnly = preg_match('/^(ma\s+list|sa\s+info|pm2|status|--version|-V|context)(\s|$)/i', $args);
 		if (!$readOnly && !$confirm) {
 			return ['dry_run' => true, 'message' => "Would run: fwconsole {$args}."];
 		}

@@ -103,8 +103,8 @@ class CreateAdmin extends AbstractTool {
 			$pw .= $all[random_int(0, strlen($all) - 1)];
 		}
 
-		// Shuffle so the required chars aren't always first
-		$pw = str_shuffle($pw);
-		return $pw;
+		// Shuffle so the required chars aren't always first — Fisher-Yates with
+		// random_int (str_shuffle uses mt_rand and isn't cryptographically secure).
+		return self::secureShuffle($pw);
 	}
 }

@@ -33,7 +33,10 @@ class ResetPassword extends AbstractTool {
 			$all = $upper . $lower . $digits . $special;
 			$pw = $upper[random_int(0, strlen($upper)-1)] . $lower[random_int(0, strlen($lower)-1)] . $digits[random_int(0, strlen($digits)-1)] . $special[random_int(0, strlen($special)-1)];
 			for ($i = 4; $i < 16; $i++) $pw .= $all[random_int(0, strlen($all)-1)];
-			$password = str_shuffle($pw);
+			// Fisher-Yates with random_int — str_shuffle uses mt_rand and is NOT
+			// cryptographically secure, which would partially undo the entropy of
+			// the random_int character picks above.
+			$password = self::secureShuffle($pw);
 		} else {
 			$password = $params['password'];
 		}

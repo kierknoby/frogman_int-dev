@@ -108,6 +108,27 @@ abstract class AbstractTool {
 	}
 
 	/**
+	 * Cryptographically-secure shuffle (Fisher-Yates with random_int).
+	 *
+	 * PHP's str_shuffle() uses mt_rand internally and is NOT cryptographically
+	 * secure — using it on a password assembled from random_int picks partially
+	 * undoes the entropy guarantee. Used by password generators.
+	 */
+	protected static function secureShuffle($s) {
+		$chars = str_split((string)$s);
+		$n = count($chars);
+		for ($i = $n - 1; $i > 0; $i--) {
+			$j = random_int(0, $i);
+			if ($i !== $j) {
+				$tmp = $chars[$i];
+				$chars[$i] = $chars[$j];
+				$chars[$j] = $tmp;
+			}
+		}
+		return implode('', $chars);
+	}
+
+	/**
 	 * Describe a FreePBX dialplan destination string ("ivr-8,s,1") with a structured
 	 * label for human display. Returns ['type', 'label', 'key'] — type is the destination
 	 * category (extension/ringgroup/queue/ivr/etc.), label is the display string,
