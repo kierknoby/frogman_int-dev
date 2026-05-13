@@ -7,6 +7,13 @@ class ToggleTimecondition extends AbstractTool {
 	public function description() { return 'Toggle a time condition override. Params: id (required), state (optional: 0=normal, 1=override-match, 2=override-nomatch). Requires confirm:true.'; }
 	public function validate($params) {
 		if (empty($params['id'])) return 'Parameter "id" is required';
+		if (!preg_match('/^\d+$/', (string)$params['id'])) return 'Parameter "id" must be numeric';
+		// state is optional. When set, must be one of: 0 (normal), 1 (override-match),
+		// 2 (override-nomatch). Validate the raw value before the (int) cast in execute()
+		// — otherwise "99" or "abc" silently cast to 99/0 and reach setState() unfiltered.
+		if (isset($params['state']) && !in_array((string)$params['state'], ['0','1','2'], true)) {
+			return 'Parameter "state" must be 0 (normal), 1 (override-match), or 2 (override-nomatch)';
+		}
 		return true;
 	}
 	public function requiredPermission() { return null; }

@@ -7,7 +7,13 @@ class SetCallForward extends AbstractTool {
 	public function description() { return 'Set call forwarding for an extension. Params: ext (required), number (required), type (optional: CF/CFB/CFU, default CF). Requires confirm:true.'; }
 	public function validate($params) {
 		if (empty($params['ext'])) return 'Parameter "ext" is required';
+		if (!preg_match('/^\d+$/', (string)$params['ext'])) return 'Parameter "ext" must be numeric';
 		if (empty($params['number'])) return 'Parameter "number" is required';
+		// `type` is optional; default is 'CF'. Validate case-insensitively (execute() does
+		// strtoupper before use) — accept any case so callers don't have to know about it.
+		if (isset($params['type']) && !in_array(strtoupper((string)$params['type']), ['CF','CFB','CFU'], true)) {
+			return 'Parameter "type" must be CF (all), CFB (busy), or CFU (unavailable)';
+		}
 		return true;
 	}
 	public function requiredPermission() { return null; }
