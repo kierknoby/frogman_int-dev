@@ -73,11 +73,19 @@ jobs:
           set -euo pipefail
           # Sanity check: tarball must contain Frogman.class.php and module.xml,
           # and the module.xml version must match the tag version.
-          tar -tzf '${{ steps.version.outputs.tarball }}' | grep -q '^frogman/Frogman\.class\.php$'
-          tar -tzf '${{ steps.version.outputs.tarball }}' | grep -q '^frogman/module\.xml$'
-          tar -xzOf '${{ steps.version.outputs.tarball }}' frogman/module.xml \
-            | grep -q "<version>${{ steps.version.outputs.version }}</version>" \
-            || { echo "module.xml version does not match tag ${{ steps.version.outputs.version }}"; exit 1; }
+          #
+          # `grep -q` exits on first match; combined with `set -o pipefail` this
+          # makes `tar | grep -q` fail when grep closes the pipe early (tar gets
+          # SIGPIPE). The check ACTUALLY matched, but pipefail saw tar's
+          # write-error and failed the step. Drop -q + redirect grep output to
+          # /dev/null so grep reads all input and tar finishes cleanly.
+          TAR='${{ steps.version.outputs.tarball }}'
+          VER='${{ steps.version.outputs.version }}'
+          tar -tzf "$TAR" | grep '^frogman/Frogman\.class\.php$' > /dev/null
+          tar -tzf "$TAR" | grep '^frogman/module\.xml$' > /dev/null
+          tar -xzOf "$TAR" frogman/module.xml \
+            | grep "<version>${VER}</version>" > /dev/null \
+            || { echo "module.xml version does not match tag ${VER}"; exit 1; }
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
