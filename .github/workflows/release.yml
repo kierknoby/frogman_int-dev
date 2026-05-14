@@ -1,0 +1,90 @@
+# Release workflow — triggered by pushing a version tag (v1.2.3).
+#
+# What it does:
+#   1. Checks out the code at the tag
+#   2. Builds a tarball (frogman-<version>.tgz) from `git archive` — only tracked
+#      files, so anything untracked in the dev box can't accidentally leak in
+#   3. Creates a GitHub Release at that tag, uploads the tarball, uses the tag's
+#      annotation message as the release body
+#
+# What it does NOT do (intentional — keep these manual):
+#   - Bump module.xml version
+#   - Write changelog entries
+#   - Deploy to the dev box
+#   - File GHSAs
+#   - Update memory
+#
+# To ship a release: bump module.xml, commit, then:
+#   git tag -a v1.6.4 -m "$(cat <<EOF
+#   v1.6.4 — bug-fix sweep
+#   ...release notes here...
+#   EOF
+#   )"
+#   git push origin v1.6.4
+#
+# The workflow appears in the Actions tab, builds the tarball, and the release
+# shows up at /releases/tag/v1.6.4 with the tarball attached.
+
+name: Release
+
+on:
+  push:
+    tags:
+      # Stable releases only — three numeric parts. Rejects pre-release tags
+      # like v1.6.4-rc1 since git-glob doesn't treat the suffix specially.
+      # (gh-actions tag filters are gitignore-style globs; * matches anything
+      # not including /. So 'v*.*.*' matches v1.6.4 and would also match
+      # v1.6.4-rc1; deliberately keep that case lax — we trust the maintainer
+      # not to push pre-release tags from main.)
+      - 'v*.*.*'
+
+permissions:
+  contents: write  # required to create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout at tag
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tarball=/tmp/frogman-${VERSION}.tgz" >> "$GITHUB_OUTPUT"
+
+      - name: Build tarball from git archive
+        run: |
+          set -euo pipefail
+          # Same shape as the local manual build:
+          #   git archive --format=tar HEAD --prefix=frogman/ | tar -xf -
+          #   tar -czf frogman-X.X.X.tgz frogman/
+          # Only tracked files end up in the tarball — orphans / .gitignore'd
+          # files can't sneak in.
+          mkdir -p /tmp/release
+          git archive --format=tar HEAD --prefix=frogman/ | tar -xf - -C /tmp/release
+          tar -czf '${{ steps.version.outputs.tarball }}' -C /tmp/release frogman/
+          ls -lh '${{ steps.version.outputs.tarball }}'
+
+      - name: Verify tarball contents
+        run: |
+          set -euo pipefail
+          # Sanity check: tarball must contain Frogman.class.php and module.xml,
+          # and the module.xml version must match the tag version.
+          tar -tzf '${{ steps.version.outputs.tarball }}' | grep -q '^frogman/Frogman\.class\.php$'
+          tar -tzf '${{ steps.version.outputs.tarball }}' | grep -q '^frogman/module\.xml$'
+          tar -xzOf '${{ steps.version.outputs.tarball }}' frogman/module.xml \
+            | grep -q "<version>${{ steps.version.outputs.version }}</version>" \
+            || { echo "module.xml version does not match tag ${{ steps.version.outputs.version }}"; exit 1; }
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          files: ${{ steps.version.outputs.tarball }}
+          # Tag's annotation message becomes the release body by default.
+          # Leave generate_release_notes off — we write our own.
+          generate_release_notes: false
+          fail_on_unmatched_files: true
