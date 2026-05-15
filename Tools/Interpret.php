@@ -301,7 +301,7 @@ class Interpret {
 	private static function scoreCommandShape($msg) {
 		$work = trim($msg);
 		$shapes = [
-	    ['pattern' => '/^(?:create|add|new)\s+(?:ext|extension)\s+\d{3,6}$/i', 'confidence' => 0.96, 'risk' => self::RISK_WRITE, 'reason' => 'known extension creation command shape'],
+	    ['pattern' => '/^(?:create|add|new)\s+(?:ext|extension)\s+\d{3,6}(?:\s+(?:for|named?)\s+.+)?$/i', 'confidence' => 0.96, 'risk' => self::RISK_WRITE, 'reason' => 'known extension creation command shape'],
 	    ['pattern' => '/^(?:delete|remove|drop|disable)\s+(?:ext|extension)\s+\d{3,6}$/i', 'confidence' => 0.96, 'risk' => self::RISK_WRITE, 'reason' => 'known extension removal command shape'],
 	    ['pattern' => '/^(?:show|get|check|list|who\s+is|current\s+calls|help)\b/i', 'confidence' => 0.90, 'risk' => self::RISK_READ, 'reason' => 'read command shape'],
 	    ['pattern' => '/^(?:health|diagnose|troubleshoot)\b/i', 'confidence' => 0.88, 'risk' => self::RISK_READ, 'reason' => 'diagnostic command shape'],
