@@ -269,7 +269,6 @@ class Interpret {
 		return [
 			['pattern' => '/\b(please|pls|plz)\b/i', 'replacement' => '', 'confidence' => 0.80, 'reason' => 'inline politeness'],
 			['pattern' => '/\b(for\s+me|if\s+you\s+can)\b/i', 'replacement' => '', 'confidence' => 0.80, 'reason' => 'inline politeness'],
-			['pattern' => '/\b(show|list|get)\s+the\s+/i', 'replacement' => '$1 ', 'confidence' => 0.82, 'reason' => 'article stripping'],
 		];
 	}
 
@@ -301,6 +300,7 @@ class Interpret {
 	private static function viewerPhraseRules() {
 		return [
 			['pattern' => '/^\s*(show|get|check)\s+me\s+/i', 'replacement' => '$1 ', 'confidence' => 0.91, 'risk' => self::RISK_READ, 'reason' => 'viewer phrase'],
+            ['pattern' => '/^\s*(show|list|get)\s+the\s+/i', 'replacement' => '$1 ', 'confidence' => 0.91, 'risk' => self::RISK_READ, 'reason' => 'article stripping'],
 			['pattern' => '/^\s*(what\'?s|what\s+is)\s+(?:the\s+)?(ext|extension)\s+(\d{3,6})\s*$/i', 'replacement' => 'show extension $3', 'confidence' => 0.91, 'risk' => self::RISK_READ, 'reason' => 'viewer phrase'],
 			['pattern' => '/^\s*(ext|extension)\s+(\d{3,6})\s*$/i', 'replacement' => 'show extension $2', 'confidence' => 0.91, 'risk' => self::RISK_READ, 'reason' => 'viewer phrase'],
 			['pattern' => '/^\s*(who\'?s|who\s+is)\s+on\s+(?:the\s+)?phone\s*$/i', 'replacement' => 'who is on the phone', 'confidence' => 0.91, 'risk' => self::RISK_READ, 'reason' => 'viewer phrase'],
