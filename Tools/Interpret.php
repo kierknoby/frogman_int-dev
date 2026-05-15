@@ -188,9 +188,9 @@ class Interpret {
         self::applyRuleGroup($work, self::phrasalVerbRules(), $confidence, $risk, $reasons);
 
         $before = $work;
-        $work = preg_replace('/^\s*(delete|remove|disable|drop)\s+(\d{3,6})\s*$/i', '$1 extension $2', $work);
+        $work = preg_replace('/^\s*(create|add|new|delete|remove|disable|drop)\s+(\d{3,6})\s*$/i', '$1 extension $2', $work);
         if ($work !== $before) {
-	    self::markRewrite($confidence, $risk, $reasons, 0.96, self::RISK_WRITE, 'numeric extension delete shorthand');
+	    self::markRewrite($confidence, $risk, $reasons, 0.96, self::RISK_WRITE, 'numeric extension shorthand');
         }
 
         // 3. Intent rewrites. These are stricter, usually anchored, and should
@@ -301,12 +301,13 @@ class Interpret {
 	private static function scoreCommandShape($msg) {
 		$work = trim($msg);
 		$shapes = [
-			['pattern' => '/^(?:show|get|check|list|who\s+is|current\s+calls|help)\b/i', 'confidence' => 0.90, 'risk' => self::RISK_READ, 'reason' => 'read command shape'],
-			['pattern' => '/^(?:health|diagnose|troubleshoot)\b/i', 'confidence' => 0.88, 'risk' => self::RISK_READ, 'reason' => 'diagnostic command shape'],
-			['pattern' => '/^(?:enable|disable|set|clear|forward|configure)\b/i', 'confidence' => 0.90, 'risk' => self::RISK_STATE, 'reason' => 'state command shape'],
-			['pattern' => '/^(?:create|add|new|rename|update)\b/i', 'confidence' => 0.89, 'risk' => self::RISK_WRITE, 'reason' => 'write command shape'],
-			['pattern' => '/^(?:delete|remove|drop|disable)\s+(?:ext|extension)\s+\d{3,6}$/i', 'confidence' => 0.96, 'risk' => self::RISK_WRITE, 'reason' => 'known extension removal command shape'],
-		];
+	    ['pattern' => '/^(?:create|add|new)\s+(?:ext|extension)\s+\d{3,6}$/i', 'confidence' => 0.96, 'risk' => self::RISK_WRITE, 'reason' => 'known extension creation command shape'],
+	    ['pattern' => '/^(?:delete|remove|drop|disable)\s+(?:ext|extension)\s+\d{3,6}$/i', 'confidence' => 0.96, 'risk' => self::RISK_WRITE, 'reason' => 'known extension removal command shape'],
+	    ['pattern' => '/^(?:show|get|check|list|who\s+is|current\s+calls|help)\b/i', 'confidence' => 0.90, 'risk' => self::RISK_READ, 'reason' => 'read command shape'],
+	    ['pattern' => '/^(?:health|diagnose|troubleshoot)\b/i', 'confidence' => 0.88, 'risk' => self::RISK_READ, 'reason' => 'diagnostic command shape'],
+	    ['pattern' => '/^(?:enable|disable|set|clear|forward|configure)\b/i', 'confidence' => 0.90, 'risk' => self::RISK_STATE, 'reason' => 'state command shape'],
+	    ['pattern' => '/^(?:create|add|new|rename|update)\b/i', 'confidence' => 0.89, 'risk' => self::RISK_WRITE, 'reason' => 'write command shape'],
+        ];
 		foreach ($shapes as $shape) {
 			if (preg_match($shape['pattern'], $work)) {
 				return $shape;
