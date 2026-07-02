@@ -242,8 +242,8 @@ class PcapAnalysis extends AbstractTool {
 					];
 				}
 				if ($tcpStreams[$key]['bytes'] + $payloadLen > self::MAX_TCP_STREAM_BYTES) {
-					$tcpStreams[$key]['bytes'] += $payloadLen;
-					$warnings[] = "TCP stream {$key} exceeded reassembly safety cap";
+					$streamCapWarning = "TCP stream {$key} exceeded reassembly safety cap";
+					if (!in_array($streamCapWarning, $warnings, true)) $warnings[] = $streamCapWarning;
 					continue;
 				}
 				if ($tcpReassemblyBytes + $payloadLen > self::MAX_TCP_REASSEMBLY_BYTES) {
