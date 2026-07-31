@@ -43,7 +43,7 @@ These rules look strict on first read. They exist because every one of them was 
 
 **Customer trust.** Every PBX Frogman touches is in production. Staying inside the walls bounds the blast radius to what FreePBX already audits. If something goes wrong inside BMO, it's a known failure mode FreePBX handles. If something goes wrong because we patched a private class, it's our problem in a way the user can't reason about.
 
-**Commercial-module IP boundary.** Sangoma's commercial modules ship Ioncube-encoded. Even the GPL deps and plaintext signatures around them sit in a workflow-IP grey zone. Wrapping that surface in agent-callable tools without the owning team's say-so isn't fair to those teams, and it's an avoidable risk for Frogman. So we don't do it by default — see the next section.
+**Commercial-module IP boundary.** Commercial FreePBX modules, Sangoma's and any third-party vendor's, ship as encoded or licensed surface with different guarantees than open-source modules. Wrapping that surface in agent-callable tools is out of scope for Frogman. See the next section.
 
 ## The one principled stretch
 
@@ -51,11 +51,11 @@ Direct DB reads of other modules' tables, when no BMO method returns the data ef
 
 ## Commercial modules
 
-By default Frogman integrates only with FreePBX's open-source modules. Tools that integrate with Sangoma commercial modules (Endpoint Manager, DPMA, Sangoma Connect, Sangoma Talk, etc.) need per-module engineering signoff from the team that owns the module, on a per-method basis.
+Frogman integrates with the open-source FreePBX framework only. Tools that touch commercial modules, Sangoma's (Endpoint Manager, DPMA, Sangoma Connect, Sangoma Talk, etc.) or any third-party vendor's, are out of scope. There isn't a per-module signoff path.
 
-This isn't legal cover. It's a fairness choice. The teams who maintain those modules should get to say yes or no to how their surface is consumed, especially by something that exposes it to AI agents at scale. Some of those answers will be yes. Some will be yes-with-conditions. Some will be no. All of them are theirs to make.
+Keeping the tool surface inside the open-source boundary means Frogman lines up with what any FreePBX install has out of the box, without commercial dependencies. It also bounds the maintenance surface to code we can read and reason about, and keeps commercial-module workflows out of an AI-agent tool catalog we ship for anyone to run.
 
-If you have an idea for a commercial-module integration, open an issue first. We can route it to the right team and have the conversation before code gets written.
+If you have an idea that hinges on a commercial-module surface, open an issue anyway. Often there's an open-source path to the same outcome.
 
 ## How to contribute
 
@@ -64,6 +64,12 @@ If you have an idea for a commercial-module integration, open an issue first. We
 3. **Branch from `main`.** One feature per branch.
 4. **Test on a real FreePBX 17 box.** See the [README](./README.md#installation) for manual-install steps. Tools that look right in a code review still surprise on a real system.
 5. **Open a PR against `main`.** Include the test commands you ran (`fwconsole frogman:tool <name> '{}'` is enough for read tools; write tools need a dry-run output too). Don't bump version numbers in PRs — versions get bumped at release time.
+
+## Commit messages
+
+Keep commit trailers to accountable humans. If you used Claude, Copilot, or any other AI assistant while writing the change, that's fine, but please don't add `Co-Authored-By: Claude ...`, `Claude-Session:` URLs, or "🤖 Generated with ..." lines to your commit messages. Mention tool use in the PR description if you want the transparency; the commit graph itself stays humans-only.
+
+`Co-Authored-By:` is git's convention for people who can answer for the code they touched. AI assistants don't fit that shape, so we keep them out of the trailer to keep the accountability trail coherent.
 
 ## Adding a new tool
 
@@ -87,7 +93,7 @@ Decision rule: ask "does this work for a Yealink phone too?" If no → vendor in
 
 - Tools that monkey-patch other modules or FreePBX core.
 - Tools that write directly to another module's tables.
-- Tools that wrap commercial-module internals without engineering signoff.
+- Tools that wrap commercial-module internals.
 - Tools that execute user-supplied PHP, SQL, or shell.
 - Tools that duplicate existing ones with slightly different parameters — extend the existing tool instead.
 - Tools that don't earn their slot in the catalog. If the workflow can be expressed as a chat phrase routed to an existing tool, that's almost always better than a new tool.
