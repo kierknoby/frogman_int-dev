@@ -110,52 +110,132 @@ class AddQueue extends AbstractTool {
 		return '';
 	}
 
+	// Every $_REQUEST key queues_add() reads, as
+	//   request key => [queues_get() key it round-trips from, literal default, tool param name]
+	// Authoritative source: queues/functions.inc/geters_seters.php queues_add().
+	// The queues_get() key is often spelled differently from the $_REQUEST key
+	// (announcefreq → announce-frequency), which is exactly why a naive merge
+	// silently drops fields.
+	private static $requestMap = [
+		'strategy'            => ['strategy',                    'ringall',  'strategy'],
+		'timeout'             => ['timeout',                     '15',       'timeout'],
+		'retry'               => ['retry',                       '5',        'retry'],
+		'wrapuptime'          => ['wrapuptime',                  '0',        'wrapuptime'],
+		'weight'              => ['weight',                      '0',        'weight'],
+		'maxlen'              => ['maxlen',                      '0',        'maxlen'],
+		'joinempty'           => ['joinempty',                   'yes',      'joinempty'],
+		'leavewhenempty'      => ['leavewhenempty',              'no',       'leavewhenempty'],
+		'announceposition'    => ['announce-position',           'no',       'announce_position'],
+		'announceholdtime'    => ['announce-holdtime',           'no',       'announce_holdtime'],
+		'announcefreq'        => ['announce-frequency',          '0',        'announce_frequency'],
+		'min-announce'        => ['min-announce-frequency',      '15',       'min_announce_frequency'],
+		'pannouncefreq'       => ['periodic-announce-frequency', '0',        'periodic_announce_frequency'],
+		'recording'           => ['recording',                   'dontcare', 'recording'],
+		'reportholdtime'      => ['reportholdtime',              'no',       'reportholdtime'],
+		'autopause'           => ['autopause',                   'no',       'autopause'],
+		'autopausedelay'      => ['autopausedelay',              '0',        'autopausedelay'],
+		'autopausebusy'       => ['autopausebusy',               'no',       'autopausebusy'],
+		'autopauseunavail'    => ['autopauseunavail',            'no',       'autopauseunavail'],
+		'servicelevel'        => ['servicelevel',                '60',       'servicelevel'],
+		'memberdelay'         => ['memberdelay',                 '0',        'memberdelay'],
+		'timeoutrestart'      => ['timeoutrestart',              'no',       'timeoutrestart'],
+		'timeoutpriority'     => ['timeoutpriority',             'app',      'timeoutpriority'],
+		'skip_joinannounce'   => ['skip_joinannounce',           '',         'skip_joinannounce'],
+		'answered_elsewhere'  => ['answered_elsewhere',          '0',        'answered_elsewhere'],
+		'penaltymemberslimit' => ['penaltymemberslimit',         '0',        'penaltymemberslimit'],
+		'rvolume'             => ['rvolume',                     '',         'rvolume'],
+		'rvol_mode'           => ['rvol_mode',                   '',         'rvol_mode'],
+		'rtone'               => ['rtone',                       '0',        'rtone'],
+	];
+
+	// queues_add() also reads these, but the create path deliberately leaves them
+	// unset so FreePBX/$amp_conf supplies the default. On the update path we set
+	// them ONLY when the queue already has a value, so an edit doesn't reset them.
+	private static $preserveOnly = [
+		'eventwhencalled'   => 'eventwhencalled',
+		'eventmemberstatus' => 'eventmemberstatus',
+		'announcemenu'      => 'announcemenu',
+		'callback'          => 'callback',
+	];
+
 	// Pre-populate $_REQUEST with the fields queues_add() reads directly.
 	// Returns the prior $_REQUEST so the caller can restore it after the call.
 	// Static so UpdateQueue + member tools can reuse without subclassing.
-	public static function applyRequest(array $params) {
+	//
+	// $current is queues_get() output on the UPDATE path and empty on create.
+	// Resolution order is: explicit param > current value > literal default. With
+	// $current empty every field collapses to the literal, so create behaviour is
+	// byte-for-byte what it was before this parameter existed.
+	public static function applyRequest(array $params, array $current = []) {
 		$prior = $_REQUEST;
 		$_REQUEST['action'] = $params['_action'] ?? 'add';
-		$_REQUEST['strategy'] = $params['strategy'] ?? 'ringall';
-		$_REQUEST['timeout'] = isset($params['timeout']) ? (string)(int)$params['timeout'] : '15';
-		$_REQUEST['retry'] = isset($params['retry']) ? (string)(int)$params['retry'] : '5';
-		$_REQUEST['wrapuptime'] = isset($params['wrapuptime']) ? (string)(int)$params['wrapuptime'] : '0';
-		$_REQUEST['weight'] = isset($params['weight']) ? (string)(int)$params['weight'] : '0';
-		$_REQUEST['maxlen'] = (string)(int)($params['maxlen'] ?? 0);
-		$_REQUEST['joinempty'] = $params['joinempty'] ?? 'yes';
-		$_REQUEST['leavewhenempty'] = $params['leavewhenempty'] ?? 'no';
-		$_REQUEST['announceposition'] = $params['announce_position'] ?? 'no';
-		$_REQUEST['announceholdtime'] = $params['announce_holdtime'] ?? 'no';
-		$_REQUEST['announcefreq'] = '0';
-		$_REQUEST['min-announce'] = '15';
-		$_REQUEST['pannouncefreq'] = '0';
-		$_REQUEST['recording'] = $params['recording'] ?? 'dontcare';
-		$_REQUEST['autofill'] = $params['autofill'] ?? 'yes';
-		$_REQUEST['reportholdtime'] = 'no';
-		$_REQUEST['autopause'] = 'no';
-		$_REQUEST['autopausedelay'] = '0';
-		$_REQUEST['servicelevel'] = '60';
-		$_REQUEST['memberdelay'] = '0';
-		$_REQUEST['timeoutrestart'] = 'no';
-		$_REQUEST['skip_joinannounce'] = '';
-		$_REQUEST['answered_elsewhere'] = '0';
-		$_REQUEST['timeoutpriority'] = 'app';
-		$_REQUEST['penaltymemberslimit'] = '0';
-		$_REQUEST['rvolume'] = '';
-		$_REQUEST['rvol_mode'] = '';
-		$_REQUEST['autopausebusy'] = 'no';
-		$_REQUEST['autopauseunavail'] = 'no';
-		$_REQUEST['music'] = $params['mohclass'] ?? 'default';
-		$_REQUEST['rtone'] = 0;
+
+		foreach (self::$requestMap as $reqKey => [$curKey, $default, $paramKey]) {
+			if (array_key_exists($paramKey, $params)) {
+				$val = $params[$paramKey];
+			} elseif (array_key_exists($curKey, $current) && $current[$curKey] !== null) {
+				$val = $current[$curKey];
+			} else {
+				$val = $default;
+			}
+			$_REQUEST[$reqKey] = is_string($val) ? $val : (string)$val;
+		}
+
+		// autofill is the one field queues_add() stores as
+		// (!empty($_REQUEST['autofill'])) ? 'yes' : 'no' — the literal string 'no'
+		// is truthy there and would be written back as 'yes'. Blank it to mean no.
+		$autofill = $params['autofill'] ?? ($current['autofill'] ?? 'yes');
+		$_REQUEST['autofill'] = ($autofill === 'no' || $autofill === '' || $autofill === '0') ? '' : 'yes';
+
+		foreach (self::$preserveOnly as $reqKey => $curKey) {
+			if (array_key_exists($curKey, $current) && $current[$curKey] !== null && $current[$curKey] !== '') {
+				$_REQUEST[$reqKey] = (string)$current[$curKey];
+			}
+		}
+
+		// MoH: 'inherit' makes queues_add skip the music row entirely. A queue with
+		// no music keyword is inheriting, so preserve that rather than pinning it
+		// to an explicit 'default'.
+		if (array_key_exists('mohclass', $params)) {
+			$_REQUEST['music'] = (string)$params['mohclass'];
+		} elseif (array_key_exists('music', $current)) {
+			$_REQUEST['music'] = (string)$current['music'];
+		} else {
+			$_REQUEST['music'] = empty($current) ? 'default' : 'inherit';
+		}
+
 		return $prior;
 	}
 
 	// Core writer used by Add + Update + member tools. All inputs already
 	// validated by the caller. Pre-populates $_REQUEST around queues_add().
-	public static function writeQueue($freepbx, array $args) {
+	//
+	// $current is queues_get() output on the UPDATE path, empty on create. The
+	// positional args below are the second place a queue's settings can be lost:
+	// they are NOT read from $_REQUEST, so hardcoding them reset agent/join
+	// announcements, call confirm and monitoring on every edit. Each now falls
+	// back to the current value, and to the original literal when $current is
+	// empty — so create is unchanged.
+	public static function writeQueue($freepbx, array $args, array $current = []) {
 		$freepbx->Modules->loadFunctionsInc('queues');
 		if (!function_exists('queues_add')) throw new \Exception('queues_add() not available — Queues module not loaded');
-		$prior = self::applyRequest($args);
+
+		// cur(key, literal): current value if the queue has one, else the literal.
+		$cur = function ($key, $literal) use ($current) {
+			if (!array_key_exists($key, $current) || $current[$key] === null || $current[$key] === '') return $literal;
+			return (string)$current[$key];
+		};
+
+		// queues_add() derives ringinuse from cwignore (2 or 3 => ringinuse 'no'),
+		// so carrying cwignore through is what preserves ringinuse. There is no way
+		// to set ringinuse independently through this path.
+		$agentannounce = $cur('agentannounce_id', null);
+		$joinannounce  = $cur('joinannounce_id', null);
+
+		// dynmembers must be an array — queues_add()'s '' default crashes array_unique.
+		$dynmembers = (isset($current['dynmembers']) && is_array($current['dynmembers'])) ? $current['dynmembers'] : [];
+
+		$prior = self::applyRequest($args, $current);
 		try {
 			queues_add(
 				$args['account'],
@@ -163,25 +243,25 @@ class AddQueue extends AbstractTool {
 				(string)($args['password'] ?? ''),
 				(string)($args['prefix'] ?? ''),
 				(string)($args['fail_destination'] ?? ''),
-				null,                                        // agentannounce_id
+				$agentannounce,
 				$args['members'] ?? [],
-				null,                                        // joinannounce_id
+				$joinannounce,
 				isset($args['maxwait']) ? (string)(int)$args['maxwait'] : '0',
 				(string)($args['alertinfo'] ?? ''),
-				'0',                                         // cwignore
-				'',                                          // qregex
-				'0',                                         // queuewait
-				'0',                                         // use_queue_context
-				[],                                          // dynmembers — queues_add() default '' crashes array_unique
-				'no',                                        // dynmemberonly
-				'0',                                         // togglehint
-				'0',                                         // qnoanswer
-				'0',                                         // callconfirm
-				'',                                          // callconfirm_id
-				'',                                          // monitor_type
-				'0',                                         // monitor_heard
-				'0',                                         // monitor_spoken
-				'0'                                          // answered_elsewhere
+				$cur('cwignore', '0'),
+				$cur('qregex', ''),
+				$cur('queuewait', '0'),
+				$cur('use_queue_context', '0'),
+				$dynmembers,
+				$cur('dynmemberonly', 'no'),
+				$cur('togglehint', '0'),
+				$cur('qnoanswer', '0'),
+				$cur('callconfirm', '0'),
+				$cur('callconfirm_id', ''),
+				$cur('monitor_type', ''),
+				$cur('monitor_heard', '0'),
+				$cur('monitor_spoken', '0'),
+				$cur('answered_elsewhere', '0')
 			);
 		} finally {
 			$_REQUEST = $prior;

@@ -9,7 +9,7 @@ require_once __DIR__ . '/AddQueue.php';
 // fields are preserved.
 class UpdateQueue extends AbstractTool {
 	public function name() { return 'fm_update_queue'; }
-	public function description() { return 'Update an existing call queue. Params: account (required). Any subset of name, strategy, timeout, retry, maxwait, fail_destination, mohclass, password, prefix, alertinfo, wrapuptime, weight, joinempty, leavewhenempty, announce_position, announce_holdtime, recording is merged in. members, if supplied, replaces the full member list (array of extension numbers or {ext, penalty} objects). Requires confirm:true.'; }
+	public function description() { return 'Update an existing call queue in place. Params: account (required). Any subset of name, strategy, timeout, retry, maxwait, fail_destination, mohclass, password, prefix, alertinfo, wrapuptime, weight, joinempty, leavewhenempty, announce_position, announce_holdtime, recording is merged in. members, if supplied, replaces the full member list (array of extension numbers or {ext, penalty} objects). Every setting you do NOT name is read back from the queue and preserved — including the ones this tool has no parameter for (service level, member delay, announce frequencies, autofill, ring-in-use, agent/join announcements, call confirm, monitoring, auto-pause). Requires confirm:true.'; }
 
 	public function validate($params) {
 		if (empty($params['account'])) return 'Parameter "account" is required';
@@ -20,29 +20,36 @@ class UpdateQueue extends AbstractTool {
 	public function requiredPermission() { return null; }
 	public function permissionLevel() { return self::PERM_WRITE; }
 
-	// Coerce queues_get() output into the args shape writeQueue() expects, then
-	// overlay caller-supplied params. Anything not supplied is preserved.
+	// Coerce queues_get() output into the args shape writeQueue() expects.
+	//
+	// Only two kinds of field belong here:
+	//   1. the positional args of queues_add(), which must always be supplied;
+	//   2. fields the caller actually named.
+	// Everything else is deliberately LEFT OUT so applyRequest()/writeQueue() fall
+	// back to the queue's current value. Naming a field here that the caller did
+	// not pass is how the old version silently rewrote it — e.g. (int)'none' on a
+	// retry of "none" quietly became 0.
 	private function buildMerged(array $current, array $params) {
 		$merged = [
-			'account'         => $params['account'],
-			'name'            => isset($params['name']) ? trim((string)$params['name']) : (string)($current['name'] ?? ''),
-			'password'        => isset($params['password']) ? (string)$params['password'] : (string)($current['password'] ?? ''),
-			'prefix'          => isset($params['prefix']) ? (string)$params['prefix'] : (string)($current['prefix'] ?? ''),
-			'fail_destination'=> isset($params['fail_destination']) ? (string)$params['fail_destination'] : (string)($current['goto'] ?? ''),
-			'alertinfo'       => isset($params['alertinfo']) ? (string)$params['alertinfo'] : (string)($current['alertinfo'] ?? ''),
-			'maxwait'         => isset($params['maxwait']) ? (int)$params['maxwait'] : (int)($current['maxwait'] ?? 0),
-			'strategy'        => $params['strategy'] ?? ($current['strategy'] ?? 'ringall'),
-			'timeout'         => isset($params['timeout']) ? (int)$params['timeout'] : (int)($current['timeout'] ?? 15),
-			'retry'           => isset($params['retry']) ? (int)$params['retry'] : (int)($current['retry'] ?? 5),
-			'wrapuptime'      => isset($params['wrapuptime']) ? (int)$params['wrapuptime'] : (int)($current['wrapuptime'] ?? 0),
-			'weight'          => isset($params['weight']) ? (int)$params['weight'] : (int)($current['weight'] ?? 0),
-			'joinempty'       => $params['joinempty'] ?? ($current['joinempty'] ?? 'yes'),
-			'leavewhenempty'  => $params['leavewhenempty'] ?? ($current['leavewhenempty'] ?? 'no'),
-			'announce_position' => $params['announce_position'] ?? ($current['announce-position'] ?? 'no'),
-			'announce_holdtime' => $params['announce_holdtime'] ?? ($current['announce-holdtime'] ?? 'no'),
-			'recording'       => $params['recording'] ?? ($current['recording'] ?? 'dontcare'),
-			'mohclass'        => $params['mohclass'] ?? ($current['music'] ?? 'default'),
+			'account'          => $params['account'],
+			'name'             => isset($params['name']) ? trim((string)$params['name']) : (string)($current['name'] ?? ''),
+			'password'         => isset($params['password']) ? (string)$params['password'] : (string)($current['password'] ?? ''),
+			'prefix'           => isset($params['prefix']) ? (string)$params['prefix'] : (string)($current['prefix'] ?? ''),
+			'fail_destination' => isset($params['fail_destination']) ? (string)$params['fail_destination'] : (string)($current['goto'] ?? ''),
+			'alertinfo'        => isset($params['alertinfo']) ? (string)$params['alertinfo'] : (string)($current['alertinfo'] ?? ''),
+			'maxwait'          => isset($params['maxwait']) ? (int)$params['maxwait'] : (int)($current['maxwait'] ?? 0),
 		];
+
+		// Integer-typed fields: cast only what the caller supplied.
+		foreach (['timeout', 'retry', 'wrapuptime', 'weight'] as $f) {
+			if (isset($params[$f])) $merged[$f] = (int)$params[$f];
+		}
+		// Pass-through fields: forward only what the caller supplied.
+		foreach (['strategy', 'joinempty', 'leavewhenempty', 'announce_position',
+		          'announce_holdtime', 'recording', 'mohclass'] as $f) {
+			if (isset($params[$f])) $merged[$f] = $params[$f];
+		}
+
 		return $merged;
 	}
 
@@ -143,7 +150,9 @@ class UpdateQueue extends AbstractTool {
 			$_REQUEST = $prior;
 		}
 
-		AddQueue::writeQueue($this->freepbx, $merged);
+		// $current is what makes this an edit rather than a re-create: every field
+		// the caller didn't name is read back out of it instead of being reset.
+		AddQueue::writeQueue($this->freepbx, $merged, $current);
 
 		return ['dry_run' => false, 'message' => "✅ Queue `{$accountSan}` `{$nameSan}` updated (" . count($diff) . " field(s) changed).", 'account' => $account, 'needs_reload' => true];
 	}

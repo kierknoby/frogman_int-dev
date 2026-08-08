@@ -61,7 +61,7 @@ class RemoveQueueMember extends AbstractTool {
 		} finally {
 			$_REQUEST = $prior;
 		}
-		AddQueue::writeQueue($this->freepbx, $merged);
+		AddQueue::writeQueue($this->freepbx, $merged, $current);
 
 		return ['dry_run' => false, 'message' => "✅ Extension `{$extSan}` removed from queue `{$accountSan}` `{$nameSan}`. Queue now has " . count($filtered) . " static member(s).", 'queue' => $account, 'ext' => $ext, 'needs_reload' => true];
 	}
