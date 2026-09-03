@@ -70,37 +70,30 @@ class AddQueueMember extends AbstractTool {
 		} finally {
 			$_REQUEST = $prior;
 		}
-		AddQueue::writeQueue($this->freepbx, $merged);
+		AddQueue::writeQueue($this->freepbx, $merged, $current);
 
 		return ['dry_run' => false, 'message' => "✅ Extension `{$extSan}` added to queue `{$accountSan}` `{$nameSan}` (penalty {$penalty}). Queue now has " . count($members) . " static member(s).", 'queue' => $account, 'ext' => $ext, 'penalty' => $penalty, 'needs_reload' => true];
 	}
 }
 
 // Shared helper for member add/remove tools. Builds the queues_add() args bag
-// from a queues_get() snapshot, preserving every settable field. Same field
-// list UpdateQueue::buildMerged uses; kept in this file rather than on
-// AddQueue to avoid bloating that class with edit-only plumbing.
+// from a queues_get() snapshot. Kept in this file rather than on AddQueue to
+// avoid bloating that class with edit-only plumbing.
 class UpdateQueueMemberHelper {
+	// Only the positional args of queues_add() belong here. Everything else is
+	// left out on purpose so writeQueue($freepbx, $merged, $current) reads it back
+	// out of $current — changing a queue's membership must not touch its settings.
+	// (Re-listing fields here re-introduced the old clobber: (int) on a retry of
+	// "none" became 0, and an inheriting MoH was pinned to "default".)
 	public static function buildMergedFromCurrent(array $current, $account) {
 		return [
-			'account'         => (string)$account,
-			'name'            => (string)($current['name'] ?? ''),
-			'password'        => (string)($current['password'] ?? ''),
-			'prefix'          => (string)($current['prefix'] ?? ''),
-			'fail_destination'=> (string)($current['goto'] ?? ''),
-			'alertinfo'       => (string)($current['alertinfo'] ?? ''),
-			'maxwait'         => (int)($current['maxwait'] ?? 0),
-			'strategy'        => (string)($current['strategy'] ?? 'ringall'),
-			'timeout'         => (int)($current['timeout'] ?? 15),
-			'retry'           => (int)($current['retry'] ?? 5),
-			'wrapuptime'      => (int)($current['wrapuptime'] ?? 0),
-			'weight'          => (int)($current['weight'] ?? 0),
-			'joinempty'       => (string)($current['joinempty'] ?? 'yes'),
-			'leavewhenempty'  => (string)($current['leavewhenempty'] ?? 'no'),
-			'announce_position' => (string)($current['announce-position'] ?? 'no'),
-			'announce_holdtime' => (string)($current['announce-holdtime'] ?? 'no'),
-			'recording'       => (string)($current['recording'] ?? 'dontcare'),
-			'mohclass'        => (string)($current['music'] ?? 'default'),
+			'account'          => (string)$account,
+			'name'             => (string)($current['name'] ?? ''),
+			'password'         => (string)($current['password'] ?? ''),
+			'prefix'           => (string)($current['prefix'] ?? ''),
+			'fail_destination' => (string)($current['goto'] ?? ''),
+			'alertinfo'        => (string)($current['alertinfo'] ?? ''),
+			'maxwait'          => (int)($current['maxwait'] ?? 0),
 		];
 	}
 }
