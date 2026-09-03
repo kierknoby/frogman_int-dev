@@ -1,6 +1,6 @@
 # Frogman 🐸
 
-**Headless PBX control through MCP and HTTP API.** Any AI, bot, or app connects and manages FreePBX through 255 tools. No GraphQL needed.
+**Headless PBX control through MCP and HTTP API.** Any AI, bot, or app connects and manages FreePBX through 257 tools. No GraphQL needed.
 
 Connect via MCP and ask "why can't extension 101 make calls?" — Frogman runs live diagnostics, searches its built-in knowledge base, and hands the AI everything it needs to answer.
 
@@ -77,9 +77,9 @@ This is optional — all other tools work without it. Without this, service tool
 
 ## Architecture
 
-Frogman is the MCP server — the AI interface to the PBX. Frogman is the FreePBX module that provides the 255 tools it exposes. Together, they have two interfaces:
+Frogman is the MCP server — the AI interface to the PBX. Frogman is the FreePBX module that provides the 257 tools it exposes. Together, they have two interfaces:
 
-- **MCP Server** — the core product. Any AI connects via MCP and uses 255 tools to control, diagnose, and troubleshoot the PBX. This is where RAG, reasoning, and intelligent support happen.
+- **MCP Server** — the core product. Any AI connects via MCP and uses 257 tools to control, diagnose, and troubleshoot the PBX. This is where RAG, reasoning, and intelligent support happen.
 - **Web Console & CLI** — a human-friendly chat interface using pattern matching. Same tools, no AI required. Useful for quick tasks without an MCP client.
 
 ### Tool Routing Hierarchy
@@ -117,7 +117,7 @@ Reads from other modules' tables are fine. Writes to other modules go through BM
 
 Contributors: see [CONTRIBUTING.md](./CONTRIBUTING.md) for the full rules, why they exist, and how to add a tool.
 
-## Tool Catalog (255 tools)
+## Tool Catalog (257 tools)
 
 ### Extensions (7)
 
@@ -347,6 +347,13 @@ Contributors: see [CONTRIBUTING.md](./CONTRIBUTING.md) for the full rules, why t
 | `fm_sip_trace` | admin | Time-bounded SIP trace capture (start/stop/status, max 30s) |
 | `fm_diagnose_extension` | read | Composite diagnostic — endpoint + qualify + active calls + CDR + summary |
 | `fm_diagnose_trunk` | read | Composite diagnostic — registration + qualify + routes + CDR + summary |
+
+### Packet Captures (2)
+
+| Tool | Level | Description |
+|------|-------|-------------|
+| `fm_list_pcaps` | read | List allowlisted `.pcap`/`.cap` captures newest-first with analyze chips |
+| `fm_analyze_pcap` | read | Read-only SIP capture decoder: per-call ladders, outcomes, RTP correlation, Simplify/Explain/Evidence follow-ups |
 
 ### Asterisk Database (2) — via AMI
 
